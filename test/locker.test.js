@@ -42,6 +42,23 @@ describe('locker', () => {
                 });
         });
 
+        it('should unlock lock', () => {
+            let lock;
+            return redisLocker.lock('key')
+                .then(l => {
+                    lock = l;
+                    return redisLocker.isLocked('key');
+                })
+                .then(isLocked => {
+                    isLocked.should.be.true();
+                    return lock.unlock();
+                })
+                .then(() => redisLocker.isLocked('key'))
+                .then(isLocked => {
+                    isLocked.should.be.false();
+                });
+        });
+
         it('should expire lock', () => {
             return redisLocker.lock('key', {expire: 1})
                 .then(() => {
