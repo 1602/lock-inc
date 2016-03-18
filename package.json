@@ -1,0 +1,22 @@
+{
+  "name": "lock-inc",
+  "version": "1.0.0",
+  "description": "Simple lock based on redis incr command",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [
+    "lock",
+    "sync",
+    "ipc"
+  ],
+  "author": "Anatoliy Chakkaev",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^2.4.0",
+    "mocha": "^2.4.5",
+    "redis": "^2.5.2",
+    "should": "^8.2.2"
+  }
+}
