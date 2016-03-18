@@ -13,7 +13,8 @@ module.exports = function lockerFactory(spec) {
     return {
         lock,
         isLocked,
-        purge
+        purge,
+        ResourceLockedError
     };
 
     function lock(resourceId, options) {
@@ -21,20 +22,25 @@ module.exports = function lockerFactory(spec) {
         const lockedAt = Date.now();
         let locked = true;
         return driver.lock(key, options)
-            .then(() => ({
-                resourceId,
-                key,
-                lockedAt,
-                unlock: () => {
-                    if (!locked) {
-                        throw new Error('Not locked');
-                    }
-                    return driver.unlock(key)
-                        .then(() => {
-                            locked = false;
-                        });
-                },
-            }));
+            .then(numberOfLocks => {
+                if (numberOfLocks > 1) {
+                    throw new ResourceLockedError(resourceId, numberOfLocks);
+                }
+                return {
+                    resourceId,
+                    key,
+                    lockedAt,
+                    unlock: () => {
+                        if (!locked) {
+                            throw new Error('Not locked');
+                        }
+                        return driver.unlock(key)
+                            .then(() => {
+                                locked = false;
+                            });
+                    },
+                };
+            });
     }
 
     function isLocked(resourceId) {
@@ -62,3 +68,16 @@ module.exports.hash = function(str) {
         .toString(URL_HASH_ENCODING);
 };
 
+module.exports.ResourceLockedError = ResourceLockedError;
+
+function ResourceLockedError(resourceId, numberOfLocks) {
+    this.name = 'ResourceLockedError';
+    this.message = 'Resource locked';
+    this.details = {
+        resourceId,
+        numberOfLocks
+    };
+
+    Error.call(this, this.message);
+    Error.captureStackTrace(this, ResourceLockedError);
+}

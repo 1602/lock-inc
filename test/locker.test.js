@@ -39,6 +39,8 @@ describe('locker', () => {
                 .then(() => {
                     should.exist(caughtError);
                     caughtError.message.should.equal('Resource locked');
+                    (caughtError instanceof lockerFactory.ResourceLockedError)
+                        .should.be.true();
                 });
         });
 
