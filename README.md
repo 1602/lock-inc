@@ -14,10 +14,11 @@ redis returns 1 - we got lock if it returns more than 2 it will throw
 const lockFactory = require('lock-inc');
 const locker = lockFactory({
     driver: 'redis',
+    // for all possible config: object keys see https://github.com/NodeRedis/node_redis#options-is-an-object-with-the-following-possible-properties
     config: {
     	host: 'localhost',
 	port: 6379,
-	database: 1
+	db: 1
     },
     settings: {
     	prefix: 'lock:'
