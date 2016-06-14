@@ -3,6 +3,8 @@
 const crypto = require('crypto');
 const URL_HASH_TYPE = 'SHA256';
 const URL_HASH_ENCODING = 'base64';
+const DEFAULT_RETRY_INTERVAL = 200;
+const DEFAULT_RETRY_ATTEMPTS = 20;
 
 const driverFactory = require('./lib/drivers');
 
@@ -14,34 +16,81 @@ module.exports = function lockerFactory(spec) {
         lock,
         isLocked,
         purge,
-        ResourceLockedError
+        ResourceLockedError,
+        close: () => driver.close()
     };
 
+    /**
+     * Attempt to lock a resource.
+     *
+     * @param {String} resourceId - identifier of resource, could be any string
+     * which represents resource.
+     * @param {Object} options:
+     *   - expire {Number}: number of seconds before lock expires, defaults to 60
+     *   - retry {Boolean}: whether it is required to retry to obtain lock in case if
+     *     it is locked, defaults to false
+     *   - maxRetryAttempts {Number}: how many times to retry, defaults to 20
+     *   - retryInterval {Number}: interval in milliseconds, defaults to 200
+     */
     function lock(resourceId, options) {
         const key = lockerFactory.hash(resourceId);
-        const lockedAt = Date.now();
-        let locked = true;
+        const retry = dget(options, 'retry', false);
+        const retryInterval = dget(options, 'retryInterval', DEFAULT_RETRY_INTERVAL);
+        let maxRetryAttempts = dget(options, 'maxRetryAttempts', DEFAULT_RETRY_ATTEMPTS);
         return driver.lock(key, options)
-            .then(numberOfLocks => {
-                if (numberOfLocks > 1) {
-                    throw new ResourceLockedError(resourceId, numberOfLocks);
-                }
-                return {
-                    resourceId,
-                    key,
-                    lockedAt,
-                    unlock: () => {
-                        if (!locked) {
-                            throw new Error('Not locked');
-                        }
-                        return driver.unlock(key)
-                            .then(() => {
-                                locked = false;
-                            });
-                    },
-                };
-            });
+            .then(numberOfLocks => handleLockingResult(numberOfLocks));
+
+        function handleLockingResult(numberOfLocks) {
+            if (numberOfLocks === 1) {
+                return buildLock(resourceId, key);
+            }
+
+            if (retry && --maxRetryAttempts >= 0) {
+                return retryLockingAfterTimeout();
+            }
+
+            throw new ResourceLockedError(resourceId, numberOfLocks);
+        }
+
+        function retryLockingAfterTimeout() {
+            return promiseTimeout(retryInterval)
+                .then(() => driver.lock(key, options))
+                .then(numberOfLocks => handleLockingResult(numberOfLocks));
+        }
+
+        function promiseTimeout(duration) {
+            return new Promise(resolve => setTimeout(resolve), duration);
+        }
+
+        function dget(obj, key, def) {
+            if (!obj || 'undefined' === typeof obj[key]) {
+                return def;
+            }
+            const val = obj[key];
+            delete obj[key];
+            return val;
+        }
     }
+
+    function buildLock(resourceId, key) {
+        let locked = true;
+
+        return {
+            resourceId,
+            key,
+            unlock,
+        };
+
+        function unlock() {
+            if (!locked) {
+                throw new Error('Not locked');
+            }
+
+            locked = false;
+            return driver.unlock(key);
+        }
+    }
+
 
     function isLocked(resourceId) {
         return driver.isLocked(lockerFactory.hash(resourceId));

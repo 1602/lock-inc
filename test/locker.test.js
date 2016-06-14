@@ -27,7 +27,6 @@ describe('locker', () => {
                     should.exist(lock);
                     lock.resourceId.should.equal('resource');
                     lock.key.should.equal(lockerFactory.hash('resource'));
-                    should.exist(lock.lockedAt);
                 });
         });
 
