@@ -4,7 +4,9 @@
   "description": "Simple lock based on redis incr command",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "test-coverage": "istanbul cover node_modules/.bin/_mocha -- -R landing",
+    "coverage-report": "export COVERALLS_GIT_COMMIT=`git rev-parse HEAD` && cat ./coverage/lcov.info | coveralls"
   },
   "keywords": [
     "lock",

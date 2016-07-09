@@ -1,5 +1,7 @@
 # Optimistic locking library
 
+[![Coverage Status](https://coveralls.io/repos/github/1602/lock-inc/badge.svg?branch=master)](https://coveralls.io/github/1602/lock-inc?branch=master)
+
 It uses redis `INCR` command to obtain lock of resource. Logic is dead simple - if
 redis returns 1 - we got lock if it returns more than 2 it will throw
 `Resource locked` error.
