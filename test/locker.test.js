@@ -7,19 +7,25 @@ describe('locker', () => {
 
     context('redis', () => {
 
-        const redisLocker = lockerFactory({
-            driver: 'redis',
-            config: {
-                host: 'localhost',
-                port: 6379,
-                database: 1,
-            },
-            settings: {
-                prefix: 'lock:'
-            }
+        let redisLocker;
+
+        before(() => {
+            redisLocker = lockerFactory({
+                driver: 'redis',
+                config: {
+                    host: 'localhost',
+                    port: 6379,
+                    database: 1,
+                },
+                settings: {
+                    prefix: 'lock:'
+                }
+            });
         });
 
-        beforeEach(redisLocker.purge);
+        after(() => redisLocker.close());
+
+        beforeEach(() => redisLocker.purge());
 
         it('should allow to configure redis as transport', () => {
             return redisLocker.lock('resource')
@@ -30,16 +36,36 @@ describe('locker', () => {
                 });
         });
 
+        it('should throw when driver is not supported', () => {
+            (() => {
+                lockerFactory({ driver: 'none' });
+            }).should.throw('Driver not supported');
+        });
+
         it('should throw an error when trying to access locked resource', () => {
-            let caughtError;
             return redisLocker.lock('hello')
                 .then(() => redisLocker.lock('hello'))
-                .catch(err => caughtError = err)
-                .then(() => {
+                .catch(err => err)
+                .then(caughtError => {
                     should.exist(caughtError);
                     caughtError.message.should.equal('Resource locked');
                     (caughtError instanceof lockerFactory.ResourceLockedError)
                         .should.be.true();
+                });
+        });
+
+        it('should retry locking', () => {
+            return redisLocker.lock('stuff', { expire: 1 })
+                .then(() => redisLocker.lock('stuff', {
+                    retry: true, 
+                    retryInterval: 100,
+                    maxRetryAttempts: 20
+                }))
+                .catch(err => {
+                    should.not.exist(err);
+                })
+                .then(lock => {
+                    should.exist(lock);
                 });
         });
 

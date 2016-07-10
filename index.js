@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const debug = require('debug')('lock');
 const URL_HASH_TYPE = 'SHA256';
 const URL_HASH_ENCODING = 'base64';
 const DEFAULT_RETRY_INTERVAL = 200;
@@ -59,7 +60,7 @@ module.exports = function lockerFactory(spec) {
         }
 
         function promiseTimeout(duration) {
-            return new Promise(resolve => setTimeout(resolve), duration);
+            return new Promise(resolve => setTimeout(resolve, duration));
         }
 
         function dget(obj, key, def) {
